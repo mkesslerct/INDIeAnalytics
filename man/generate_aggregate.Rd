@@ -27,6 +27,7 @@ objects:
 \itemize{
 \item user,
 \item name,
+\item email,
 \item date,
 \item type,
 \item percentage,

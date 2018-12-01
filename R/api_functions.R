@@ -17,6 +17,7 @@
 ##' objects:
 ##' - user,
 ##' - name,
+##' - email,
 ##' - date,
 ##' - type,
 ##' - percentage,
