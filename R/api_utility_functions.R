@@ -34,17 +34,17 @@ update_intermediate <- function(intermediate, new_events){
   if (!is.null(intermediate$last_event)){
     intermediate$last_event <-
       intermediate$last_event %>%
-      mutate(
+      dplyr::mutate(
         date_last_event = lubridate::ymd_hms(date_last_event),
         time_spent = as.double(time_spent),
         percentage = as.double(percentage)
       )
   }
   intermediate$last_event <-
-    bind_rows(
+    dplyr::bind_rows(
       intermediate$last_event,
       new_events %>%
-        select(
+        dplyr::select(
           url,
           user,
           date_last_event = date,
@@ -52,9 +52,9 @@ update_intermediate <- function(intermediate, new_events){
           percentage
         )
     ) %>%
-    arrange(date_last_event) %>%
-    group_by(url, user) %>%
-    summarise(
+    dplyr::arrange(date_last_event) %>%
+    dplyr::group_by(url, user) %>%
+    dplyr::summarise(
       date_last_event = tail(date_last_event, 1L),
       time_spent = tail(time_spent, 1L),
       percentage = tail(percentage, 1L)
@@ -65,21 +65,21 @@ update_intermediate <- function(intermediate, new_events){
   ## is the "latest" title (the title can be changed by the teacher along
   ## the event registration
   intermediate$visited_units <-
-    bind_rows(
+    dplyr::bind_rows(
       intermediate$visited_units,
       events %>%
-        arrange(date) %>%
-        select(url, title)
+        dplyr::arrange(date) %>%
+        dplyr::select(url, title)
     ) %>%
-    group_by(url) %>%
-    summarise(current_title = tail(title, 1L))
+    dplyr::group_by(url) %>%
+    dplyr::summarise(current_title = tail(title, 1L))
   ## users is a dataframe which contains users that have interacted with the platform
-  intermediate$users <-  bind_rows(
+  intermediate$users <-  dplyr::bind_rows(
     intermediate$users,
     events %>%
-      select(user, email, name)
+      dplyr::select(user, email, name)
   ) %>%
-    distinct(.)
+    dplyr::distinct(.)
   ## -------------------------------------------------------------------------
   ##
   ## visitors is a dataframe that contains, for each url, a list column
@@ -87,30 +87,30 @@ update_intermediate <- function(intermediate, new_events){
   ## column have_completed, with the users' id that have completed the url
   ## -------------------------------------------------------------------------
   max_percentages <- new_events %>%
-    select(url, user, percentage) %>%
-    group_by(url, user) %>%
-    summarise(max_percentage = max(percentage))
+    dplyr::select(url, user, percentage) %>%
+    dplyr::group_by(url, user) %>%
+    dplyr::summarise(max_percentage = max(percentage))
   visitors_new <- max_percentages %>%
-    group_by(url) %>%
+    dplyr::group_by(url) %>%
     tidyr::nest() %>%
-    mutate(
+    dplyr::mutate(
       have_visited = purrr::map(
         data,
         ~ .x$user
       ),
       have_completed = purrr::map(
         data,
-        ~ filter(.x, max_percentage >= 100)$user
+        ~ dplyr::filter(.x, max_percentage >= 100)$user
       )
     ) %>%
-    select(- data)
-  intermediate$visitors <- bind_rows(
+    dplyr::select(- data)
+  intermediate$visitors <- dplyr::bind_rows(
     intermediate$visitors,
     visitors_new
   ) %>%
-    group_by(url) %>%
+    dplyr::group_by(url) %>%
     tidyr::nest(.) %>%
-    mutate(
+    dplyr::mutate(
       have_visited = purrr::map(
         data,
         ~ unique(purrr::reduce(.x$have_visited, c))
@@ -120,7 +120,7 @@ update_intermediate <- function(intermediate, new_events){
         ~ unique(purrr::reduce(.x$have_completed, c))
       )
     ) %>%
-    select( - data)
+    dplyr::select( - data)
   ## ------------------------------------------------------------------------------
   ##
   ## user_url_time a dataframe that contains, for each user, url and percentage
@@ -130,29 +130,29 @@ update_intermediate <- function(intermediate, new_events){
   ##
   ## ------------------------------------------------------------------------------
   user_url_time_new <- new_events %>%
-    select(url, user, date, time_spent, percentage) %>%
-    group_by(user, url, percentage) %>%
-    arrange(date) %>%
-    summarise(
+    dplyr::select(url, user, date, time_spent, percentage) %>%
+    dplyr::group_by(user, url, percentage) %>%
+    dplyr::arrange(date) %>%
+    dplyr::summarise(
       time_to_achieve = min(time_spent),
-      time_spent = max(time_spent),
+      time_spent = max(time_spent)
     )
   if (!is.null(intermediate$user_url_time)){
     intermediate$user_url_time <-
       intermediate$user_url_time %>%
-      mutate_at(
-        vars(percentage:time_spent),
-        .funs = funs(as.double)
+      dplyr::mutate_at(
+        dplyr::vars(percentage:time_spent),
+        .funs = dplyr::funs(as.double)
       )
   }
 
   intermediate$user_url_time <-
-    bind_rows(
+    dplyr::bind_rows(
       intermediate$user_url_time,
       user_url_time_new
     ) %>%
-    group_by(user, url, percentage) %>%
-    summarise(
+    dplyr::group_by(user, url, percentage) %>%
+    dplyr::summarise(
       time_to_achieve = min(time_to_achieve),
       time_spent = max(time_spent)
     )
@@ -165,21 +165,21 @@ update_intermediate <- function(intermediate, new_events){
   if (!is.null(intermediate$daily_effort)){
     intermediate$daily_effort <-
       intermediate$daily_effort %>%
-      mutate(
+      dplyr::mutate(
         day = lubridate::ymd(day, tz = "UTC"),
         time_spent = as.double(time_spent)
       )
   }
 
   logins <- new_events %>%
-    filter(type == "LoggedIn")
+    dplyr::filter(type == "LoggedIn")
   ## We need to split duration_session between two days if the session begins a day
   ## and ends the day after
   ## We begin by discarding session where there is no need to split
   ## the duration of the session
   ##
   logins <- logins %>%
-    mutate(
+    dplyr::mutate(
       requires_split = lubridate::floor_date(date, unit = "day") !=
         lubridate::floor_date(date + duration_session, unit = "day")
     )
@@ -195,14 +195,14 @@ update_intermediate <- function(intermediate, new_events){
   if (sum(!logins$requires_split) > 0){
 
     daily_effort_no_split <- logins %>%
-      filter(!requires_split) %>%
-      ungroup() %>%
-      select(
+      dplyr::filter(!requires_split) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(
         user,
         date,
         duration_session
       ) %>%
-      mutate(
+      dplyr::mutate(
         day = lubridate::floor_date(date, unit = "day"),
         duration = as.difftime(duration_session, units = "secs")
       )
@@ -212,8 +212,8 @@ update_intermediate <- function(intermediate, new_events){
 
   if(sum(logins$requires_split) > 0){
     logins_with_split <- logins %>%
-      filter(requires_split) %>%
-      mutate(
+      dplyr::filter(requires_split) %>%
+      dplyr::mutate(
         df_duration = purrr::map2(
           date,
           duration_session,
@@ -223,8 +223,8 @@ update_intermediate <- function(intermediate, new_events){
     ##Cogemos el Loggin de cada sesión, le calculamos su duración y se la
     ## asignamos a ese día
     daily_effort_with_split <- logins_with_split %>%
-      ungroup() %>%
-      select(
+      dplyr::ungroup() %>%
+      dplyr::select(
         user,
         date,
         duration_session,
@@ -241,21 +241,21 @@ update_intermediate <- function(intermediate, new_events){
       daily_effort_no_split,
       daily_effort_with_split
     ) %>%
-    group_by(user, day) %>%
-    summarise(
+    dplyr::group_by(user, day) %>%
+    dplyr::summarise(
       time_spent = as.numeric(sum(duration))
     ) %>%
-    left_join(intermediate$users)
+    dplyr::left_join(intermediate$users)
   intermediate$daily_effort <-
-    bind_rows(
+    dplyr::bind_rows(
       intermediate$daily_effort,
       daily_effort
     ) %>%
-    group_by(user, day) %>%
-    summarise(
+    dplyr::group_by(user, day) %>%
+    dplyr::summarise(
       time_spent = as.numeric(sum(time_spent))
     ) %>%
-    left_join(intermediate$users)
+    dplyr::left_join(intermediate$users)
 
   ##
   ## -------------------------------------------------------------------------
@@ -312,7 +312,7 @@ intermediate2aggregate <- function(intermediate){
   ##
   ## df with url, visitors, and finishers.
   aggregate$visited_completed_units <- intermediate$visitors %>%
-    mutate(
+    dplyr::mutate(
       visitors = purrr::map_int(
         have_visited,
         ~ length(.x)
@@ -322,32 +322,32 @@ intermediate2aggregate <- function(intermediate){
         ~ length(.x)
       )
     ) %>%
-    select( - have_visited, - have_completed) %>%
-    left_join(intermediate$visited_units)
+    dplyr::select( - have_visited, - have_completed) %>%
+    dplyr::left_join(intermediate$visited_units)
 
   ##
   user_url <- intermediate$user_url_time %>%
-    group_by(user, url)%>%
-    summarise(
+    dplyr::group_by(user, url)%>%
+    dplyr::summarise(
       time_spent = max(time_spent),
       maxpercentage = max(percentage)
     )
   user_url_visited <- user_url %>%
-    group_by(user) %>%
-    summarise(
+    dplyr::group_by(user) %>%
+    dplyr::summarise(
       number = n(),
       time_spent = sum(time_spent),
       type = "visited"
     )
   user_url_completed <- user_url %>%
-    filter(maxpercentage >= 100) %>%
-    group_by(user) %>%
-    summarise(
+    dplyr::filter(maxpercentage >= 100) %>%
+    dplyr::group_by(user) %>%
+    dplyr::summarise(
       number = n(),
       time_spent = sum(time_spent),
       type = "completed"
     )
-  aggregate$user_url_visited_completed <- bind_rows(
+  aggregate$user_url_visited_completed <- dplyr::bind_rows(
     user_url_visited,
     user_url_completed
   )
@@ -357,8 +357,8 @@ intermediate2aggregate <- function(intermediate){
   ##
   ## ------------------------------------------------------------------------------
   aggregate$user_url_time_percentage <- intermediate$user_url_time %>%
-    group_by(user, url) %>%
-    summarise(
+    dplyr::group_by(user, url) %>%
+    dplyr::summarise(
       maxpercentage = max(percentage),
       time_url = max(time_spent)
     )
@@ -374,8 +374,8 @@ intermediate2aggregate <- function(intermediate){
   )
   aggregate$percentage_user_wide <-
     aggregate$user_url_time_percentage %>%
-    left_join(intermediate$visited_units, by = "url") %>%
-    select(user, url, maxpercentage) %>%
+    dplyr::left_join(intermediate$visited_units, by = "url") %>%
+    dplyr::select(user, url, maxpercentage) %>%
     tidyr::spread(
       key  = "url",
       value = "maxpercentage"
@@ -390,8 +390,8 @@ intermediate2aggregate <- function(intermediate){
   ##
   ## ------------------------------------------------------------------------------
   aggregate$time_user_wide <- aggregate$user_url_time_percentage %>%
-    left_join(intermediate$visited_units, by = "url") %>%
-    select(user, url, time_url) %>%
+    dplyr::left_join(intermediate$visited_units, by = "url") %>%
+    dplyr::select(user, url, time_url) %>%
     tidyr::spread(
       key  = "url",
       value = "time_url"
@@ -403,10 +403,10 @@ intermediate2aggregate <- function(intermediate){
   ##
   ## -------------------------------------------------------------------------
   aggregate$objectives_quartiles <- intermediate$user_url_time %>%
-    filter(percentage > 0) %>%
-    mutate(time_to_achieve = round(time_to_achieve / 60, 1)) %>%
-    group_by(url, percentage) %>%
-    summarise(
+    dplyr::filter(percentage > 0) %>%
+    dplyr::mutate(time_to_achieve = round(time_to_achieve / 60, 1)) %>%
+    dplyr::group_by(url, percentage) %>%
+    dplyr::summarise(
       q1 = quantile(time_to_achieve, 0.25, na.rm = TRUE),
       q2 = quantile(time_to_achieve, 0.5, na.rm = TRUE),
       q3 = quantile(time_to_achieve, 0.75, na.rm = TRUE),
@@ -419,8 +419,8 @@ intermediate2aggregate <- function(intermediate){
   ## -------------------------------------------------------------------------
   objectives_quartiles.long <- aggregate$objectives_quartiles %>%
     tidyr::gather(key = "variable", value = "quartile", q1:q3 ) %>%
-    group_by(url, variable) %>%
-    mutate(
+    dplyr::group_by(url, variable) %>%
+    dplyr::mutate(
       path = c(TRUE, diff(quartile) < 0),
       path = cumsum(path)
     )
@@ -432,8 +432,8 @@ intermediate2aggregate <- function(intermediate){
   ##            objectives_quartiles.long$trozo)
   ## )
   objectives_quartiles_df <- objectives_quartiles.long %>%
-    mutate(variable2 = variable) %>%
-    group_by(url, path, variable2) %>%
+    dplyr::mutate(variable2 = variable) %>%
+    dplyr::group_by(url, path, variable2) %>%
     tidyr::nest()
 
   paths <- purrr::map(objectives_quartiles_df$data, ~ prepare_path(.x))

@@ -63,16 +63,16 @@ prepare_events <- function(events, intermediate = NULL){
   ##
   ##  browser()
   events <- events %>%
-    mutate(
+    dplyr::mutate(
       percentage = as.numeric(percentage),
       date = lubridate::mdy_hms(date)
     ) %>%
-    arrange(date) %>% #arrange(date, type_id) %>% (type id para Login primero)
-    group_by(url, user) %>%
-    mutate(session = cumsum(type == "LoggedIn")) %>%
-    ungroup()
+    dplyr::arrange(date) %>% #arrange(date, type_id) %>% (type id para Login primero)
+    dplyr::group_by(url, user) %>%
+    dplyr::mutate(session = cumsum(type == "LoggedIn")) %>%
+    dplyr::ungroup()
   events <- events %>%
-    filter(profile == "alumno")
+    dplyr::filter(profile == "alumno")
 
   ## -------------------------------------------------------------------------
   ##
@@ -85,27 +85,27 @@ prepare_events <- function(events, intermediate = NULL){
       sum(events$session == 0) > 0) {
     intermediate$last_event <-
       intermediate$last_event %>%
-      mutate(
+      dplyr::mutate(
         date_last_event = lubridate::ymd_hms(date_last_event),
         time_spent = as.double(time_spent),
         percentage = as.double(percentage)
       )
     interrupted_sessions_last_event <- events %>%
-      filter(session == 0) %>%
-      select(user, url) %>%
-      distinct() %>%
-      left_join(intermediate$last_event) %>%
-      rename(date = date_last_event) %>%
-      mutate(type = "LoggedIn")
+      dplyr::filter(session == 0) %>%
+      dplyr::select(user, url) %>%
+      dplyr::distinct() %>%
+      dplyr::left_join(intermediate$last_event) %>%
+      dplyr::rename(date = date_last_event) %>%
+      dplyr::mutate(type = "LoggedIn")
     ## problema con el tipo de date, que era date_last_event
-    events <- bind_rows(
+    events <- dplyr::bind_rows(
       interrupted_sessions_last_event,
       events
     )
     events <- events %>%
-      group_by(url, user) %>%
-      mutate(session = cumsum(type == "LoggedIn")) %>%
-      ungroup()
+      dplyr::group_by(url, user) %>%
+      dplyr::mutate(session = cumsum(type == "LoggedIn")) %>%
+      dplyr::ungroup()
   }
 
   ## ------------------------------------------------------------------------------
@@ -114,8 +114,8 @@ prepare_events <- function(events, intermediate = NULL){
   ##
   ## ------------------------------------------------------------------------------
   events <- events  %>%
-    group_by(user, session, url) %>%
-    mutate(
+    dplyr::group_by(user, session, url) %>%
+    dplyr::mutate(
       ellapsed_time =  as.numeric(date) - as.numeric(date[1L])
     )
 
@@ -126,12 +126,12 @@ prepare_events <- function(events, intermediate = NULL){
   ## sessions: user, session, url, duration_session, previous_duration
   ##
   sessions <- events %>%
-    group_by(user, session,  url) %>%
-    summarise(
+    dplyr::group_by(user, session,  url) %>%
+    dplyr::summarise(
       duration_session =  diff(as.numeric(range(date)))
     )  %>%
-    group_by(user, url) %>%
-    mutate(
+    dplyr::group_by(user, url) %>%
+    dplyr::mutate(
       previous_duration = cumsum(
         c(0, duration_session)[1:length(duration_session)]
       )
@@ -140,27 +140,27 @@ prepare_events <- function(events, intermediate = NULL){
 
   if (length(intermediate$last_event) > 0){
     sessions <- sessions %>%
-      left_join(intermediate$last_event) %>%
-      mutate(previous_duration = previous_duration +
-               if_else(
+      dplyr::left_join(intermediate$last_event) %>%
+      dplyr::mutate(previous_duration = previous_duration +
+                      dplyr::if_else(
                  is.na(time_spent),
                  0,
                  time_spent
                )
       ) %>%
-      select( - date_last_event, - time_spent, - percentage)
+      dplyr::select( - date_last_event, - time_spent, - percentage)
   }
   ## "time_spent" by the user in the url up to the current event is computed
   ## It sums the time spent in the url during previous sessions, and the
   events <- events %>%
-    left_join(sessions)
+    dplyr::left_join(sessions)
   events <- events %>%
-    mutate(
+    dplyr::mutate(
       time_spent = ellapsed_time +
         previous_duration
     )
-  ungroup(events) %>%
-    select(
+  dplyr::ungroup(events) %>%
+    dplyr::select(
       - session,
       - ellapsed_time,
       - previous_duration

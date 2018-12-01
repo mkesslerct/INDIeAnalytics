@@ -53,6 +53,7 @@
 ##' @param json_events_intermediate a json string (see details below)
 ##' @return a list with two elements: \code{"updated_intermediate"} and
 ##' \code{"aggregate"}.
+##' @importFrom magrittr %>%
 ##' @export
 generate_aggregate<- function(json_events_intermediate){
   ## ------------------------------------------------------------------------------
