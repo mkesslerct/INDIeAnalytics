@@ -67,7 +67,7 @@ update_intermediate <- function(intermediate, new_events){
   intermediate$visited_units <-
     dplyr::bind_rows(
       intermediate$visited_units,
-      events %>%
+      new_events %>%
         dplyr::arrange(date) %>%
         dplyr::select(url, title)
     ) %>%
@@ -76,7 +76,7 @@ update_intermediate <- function(intermediate, new_events){
   ## users is a dataframe which contains users that have interacted with the platform
   intermediate$users <-  dplyr::bind_rows(
     intermediate$users,
-    events %>%
+    new_events %>%
       dplyr::select(user, email, name)
   ) %>%
     dplyr::distinct(.)
